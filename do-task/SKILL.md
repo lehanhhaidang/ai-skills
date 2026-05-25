@@ -121,7 +121,7 @@ After the user confirms:
 2. Run tests if a test suite exists (detect from `composer.json` / `package.json` scripts, `pytest.ini`, `Cargo.toml`, etc.)
 3. Cross-check: if you modified an endpoint or schema that has cross-references in the docs (`Related: [XX-...]`), verify the related modules don't break
 
-### Step 7 — Update the module docs (REQUIRED if code changed)
+### Step 7 — Update the module docs (REQUIRED if code changed OR insight captured)
 
 After the change is applied, update `{modules_path}/{NN}-{slug}.md` for any of these:
 
@@ -133,14 +133,27 @@ After the change is applied, update `{modules_path}/{NN}-{slug}.md` for any of t
 | Changed main workflow / business rule | WORKFLOW / KEY FEATURES |
 | Added/removed validation rule | (mention under API ENDPOINTS or NOTES) |
 | Discovered docs drift from code (Step 4) | Fix in-place — no separate PR needed |
+| **Non-obvious insight discovered during task** (bug root cause, hidden business rule, footgun, undocumented invariant) | KEY FEATURES / WORKFLOW (rules) or NOTES / GOTCHAS (traps) |
+
+**The 3-question filter for insight capture** — only capture if ALL three are Yes:
+
+1. Is this **not already** in the docs?
+2. Would it **surprise** a careful reader of the code? (i.e., not obvious from reading the file directly)
+3. Would knowing it save the next reader **>5 minutes**?
+
+Auto-capture vs ask:
+- **Bug fix with non-obvious root cause** → default capture (no need to ask; usually passes the filter)
+- **Q&A insight** (intent = question, no code change) → ask the user once: *"Did we discover anything worth noting in the docs?"* Default No — keep the bar high.
+- **Routine work** (typo, format, trivial rename) → do NOT capture insights, only the file/endpoint change itself.
 
 Rules for updating:
 
 - Edit in-place, preserve the existing format (headings, tables)
 - At the end of the file: replace the old timestamp with `_Last updated: YYYY-MM-DD_`
 - If the task touches multiple modules, update all relevant module docs
-- Pure Q&A with no code change → do NOT update docs
 - Don't update docs from memory — verify against the code you just changed
+- **Docs are reference, not journal.** No per-entry date stamps inside sections. No "LEARNINGS LOG" / changelog accumulation. Each line in the docs must be worth keeping 5 years from now — history lives in `git log`.
+- Place insights into the **right existing section**, not a new bucket: business rules → KEY FEATURES/WORKFLOW; traps/footguns → NOTES/GOTCHAS (1 concise line, focused).
 
 ### Step 8 — Report back
 
@@ -162,6 +175,8 @@ Tell the user briefly:
 
 **Why no config file?** A conventional docs path (`docs/modules/` or `<repo>-docs/modules/`) is enough — auto-discovery handles 95%+ of cases. Locale and project roots are inferable from the docs themselves (file paths inside docs are already relative to project root). A config file would be another thing to maintain for negligible gain.
 
+**Why no LEARNINGS LOG / changelog inside docs?** Docs are a **reference**, not a journal. Append-only logs with per-entry dates bloat the file, push the authoritative content down, and after a few months the doc reads like a git log instead of a spec — at which point nobody reads it and the whole system collapses. Insights worth keeping go into the right semantic section (KEY FEATURES, NOTES/GOTCHAS) with no timestamp; history lives in `git log` and is queryable when needed. The 3-question filter in Step 7 keeps capture-rate low on purpose — high signal beats high volume.
+
 ## Anti-patterns to avoid
 
 - ❌ Skipping Step 0 (locate folder) → reading the wrong path → fail
@@ -173,6 +188,8 @@ Tell the user briefly:
 - ❌ Trusting docs blindly when code has clearly changed → applying outdated business rules
 - ❌ Reading docs but not code → answering from stale information
 - ❌ Ad-hoc indexing instead of calling `index-codebase` → non-standard format that breaks future use
+- ❌ Capturing every insight / writing dated entries / adding a "LEARNINGS LOG" → docs bloat into a journal, lose trust, get ignored
+- ❌ Capturing insights without the 3-question filter → low-signal noise dilutes the high-signal content already in the docs
 
 ## Output style
 
