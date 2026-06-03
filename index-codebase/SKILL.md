@@ -77,7 +77,7 @@ Each agent receives:
 - Module number + name + 1-sentence intent
 - Code roots (BE/FE paths)
 - The format template (see "Format Spec" below)
-- A map of each code root → its short SHA (`git rev-parse --short HEAD` per repo) plus the format version (`v1`), so each agent stamps the `Synced:` footer with only the repos *its* module actually touches; agents may not have git access of their own
+- Each code root paired with its current commit id, plus the format version (`v1`) — so each agent can stamp the `Synced:` footer for the repos *its* module touches (sub-agents may lack VCS access of their own, so hand them the ids)
 - Instruction: read code, output one complete file `modules/{NN}-{slug}.md`
 
 Each agent's tasks:
@@ -120,13 +120,8 @@ This skill MUST emit docs in the format below so `do-task` can read them automat
 **Footer marker (every generated file).** Each doc ends with one reference line — a field, not a journal:
 `_Last updated: {YYYY-MM-DD} · Synced: {sync-spec} · Format: v1_`
 
-- `Synced: {sync-spec}` = the VCS baseline at which this doc was verified, **discovered from the files the module references — never assumed to be a single repo.** Build it at write/verify time:
-  1. For each file path the doc lists, find its owning repo by walking up to the nearest `.git`.
-  2. Group files by repo. Emit one entry per distinct repo: `{repo-path-relative-to-project-root}@{short SHA}` (`git rev-parse --short HEAD` in that repo).
-  3. Files under no git repo → `{group}#{short content hash}`; if there's no VCS at all → `n/a`.
-  4. Join entries with ` · `.
-
-  This adapts to any layout automatically: single repo → `app@a1b2c3` · split BE/FE → `drivercall-be@a1b2c3 · drivercall-fe@d4e5f6` · monorepo → one entry · no VCS → `n/a`. `do-task` reads it back and re-checks each entry to detect drift.
+- `Synced: {sync-spec}` = the VCS baseline at which this doc was verified — the point a later run diffs against to detect drift. **This is policy, not mechanics:** you already know how to drive git/hg/etc., so just record one entry per distinct repo the module's files belong to, formatted `{repo-rel-path}@{short-commit-id}`, joined with ` · ` (files outside any repo → one `nogit#{hash}` entry — a short hash of those files' contents; only if nothing can be computed → `n/a`). Never assume a single repo — derive the repos from the files the doc actually references.
+  - Layout-agnostic by construction: single repo → `app@a1b2c3` · split BE/FE → `drivercall-be@a1b2c3 · drivercall-fe@d4e5f6` · monorepo → one entry · no VCS → `n/a`. The **format** is the contract `do-task` parses back; the **commands** are yours to pick for the actual environment.
 - `Format: v1` = the version of this format spec, so `do-task` knows whether the docs match what it expects. Bump only when the spec's shape changes.
 - Updated **in place**, never appended to — stays compatible with the "docs are reference, not journal" rule.
 
@@ -342,7 +337,7 @@ _Last updated: {YYYY-MM-DD} · Synced: {sync-spec} · Format: v1_
 
 **Large monorepo (Nx/Turborepo/Bazel)**: ask about scope. Indexing per-app under `apps/*/docs/modules/` is often the right shape.
 
-**Multi-repo project (separate BE/FE or service repos under one non-git parent)**: common and fully supported. Treat the parent folder as the project root and each sub-folder as its own repo; a single module doc may legitimately span several repos. The `Synced:` footer records one `repo@sha` entry per repo the module touches (see Format Spec) — discovered, not hardcoded. Note: if the docs folder itself sits outside every git repo, its history won't be in any `git log` — suggest the user keep docs in a tracked location if they want that safety net.
+**Multi-repo project (separate BE/FE or service repos under one non-git parent)**: common and fully supported. Treat the parent folder as the project root and each sub-folder as its own repo; a single module doc may legitimately span several repos. The `Synced:` footer records one `repo@commit` entry per repo the module touches (see Format Spec) — discovered, not hardcoded. Note: if the docs folder itself sits outside every git repo, its history won't be in any `git log` — suggest the user keep docs in a tracked location if they want that safety net.
 
 ## Anti-patterns
 

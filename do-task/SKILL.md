@@ -93,12 +93,7 @@ While reading, hold on to: what each function does, its inputs/outputs, and side
 
 If docs drift from code (e.g., docs mention a method that no longer exists, or code has a method docs missed) → flag it in the report. Don't trust docs blindly. Note these for the doc update in Step 7.
 
-**Staleness check (cheap — do it once per relevant module, before trusting the doc).** Each doc footer carries `Synced: {sync-spec}` and `Format: v{N}`. The sync-spec is **one or more entries** — it adapts to the project's repo layout (single repo, split BE/FE, monorepo, or none). For **each** entry:
-- `repo@sha` → locate `repo` (a path relative to the project root), run `git diff --name-only {sha} HEAD` inside it, and intersect with the module's files that live under that repo. Any overlap → the doc is possibly stale **for those files**: trust the code over the doc, mark the module for a Step 7 re-sync.
-- `group#hash` (non-git files) → recompute the hash and compare; if it differs → stale.
-- unresolvable repo, `n/a`, or missing → skip that entry silently (graceful degradation — fall back to the drift-flag above).
-
-Check what you can and skip what you can't — a multi-repo module where only one repo is reachable is still partially verifiable. If `Format:` is absent or differs from what this skill expects, note the docs may predate the current format and a re-index could help.
+**Staleness check (cheap — do it once per relevant module, before trusting the doc).** Each doc footer carries `Synced: {sync-spec}` (one or more `repo@commit` entries) and `Format: v{N}`. For each entry, work out — using whatever VCS the project uses, the way you normally would — whether any of that module's files changed in that repo since the recorded commit. **You know how to do this; pick the right command for the actual layout.** Do NOT blindly assume one repo or a fixed working directory — that rigid assumption is exactly what made an earlier version miss new commits (the project root may not even be the git repo; the sub-folders are). Any changed file the module references → the doc is possibly stale **for those files**: trust the code, mark the module for a Step 7 re-sync. Non-VCS entries (`nogit#{hash}`) → recompute that hash over the same files and compare. Unresolvable / `n/a` / missing → skip silently (fall back to the drift-flag above). Check what you can, skip what you can't. If `Format:` is absent or differs from what this skill expects, note the docs may predate the current format and a re-index could help.
 
 #### Completeness protocol — trace to the real boundary
 
@@ -231,7 +226,7 @@ Auto-capture vs ask:
 Rules for updating:
 
 - Edit in-place, preserve the existing format (headings, tables)
-- At the end of the file: refresh the footer marker in place — `_Last updated: {today} · Synced: {sync-spec} · Format: v1_`. Rebuild `{sync-spec}` by **discovery**: for the files this module references, group them by owning git repo (walk up to the nearest `.git`) and emit one `{repo-rel-path}@{short SHA}` per repo (non-git files → `{group}#{hash}`; nothing under VCS → `n/a`). This adapts to single-repo, split BE/FE, or monorepo automatically, and is what makes the next session's staleness check (Step 4) work — keep it current.
+- At the end of the file: refresh the footer marker in place — `_Last updated: {today} · Synced: {sync-spec} · Format: v1_`. Rebuild `{sync-spec}` per the Format Spec: one `{repo-rel-path}@{commit-id}` per repo the module's files belong to (get each repo's current commit the normal way — you don't need step-by-step git here; files outside any repo → `nogit#{hash}`; nothing computable → `n/a`). This is what makes the next session's staleness check (Step 4) work — keep it current.
 - **Update `00-index.md` too** when the change affects what it records (module set, `Related:` cross-refs, or the qualitative scale class). 00-index is the entry point `do-task` reads first (Step 2); if it's stale, every future task starts navigating from a wrong map.
 - If the task touches multiple modules, update all relevant module docs
 - Don't update docs from memory — verify against the code you just changed
