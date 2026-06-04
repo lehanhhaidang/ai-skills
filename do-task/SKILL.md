@@ -13,6 +13,8 @@ This skill applies to any codebase indexed by `index-codebase` (or an equivalent
 
 **Plan, then execute — against a written contract.** do-task is a planner *and* an executor: it turns the request into a plan + checklist, **persists that to a single task file** under the docs folder (so the contract survives context loss, compaction, or a brand-new session), executes against it, and reconciles every item with evidence before reporting done. The task file is a working record you own — move, archive, or delete it freely. (The "docs are reference, not journal" rule governs `modules/` docs only; task files are dated working records by design, kept in a separate `tasks/` folder.)
 
+**Spend tokens where they buy correctness — nowhere else.** Default to the leanest path that answers the task: the orchestrator reads the relevant code directly. The heavy machinery — parallel sub-agents, whole-codebase symbol sweeps, the plan file — is **opt-in by need, not default**; small or single-target tasks rarely need any of it. More tokens ≠ more correct: spend the rigor on the *load-bearing, uncertain, and negative* claims (Step 4), not by inflating every step.
+
 ## When to trigger
 
 - User describes a bug / pastes an error message
@@ -118,7 +120,14 @@ If docs drift from code (e.g., docs mention a method that no longer exists, or c
 
 4. **Default to cross-module blast radius.** If a changed symbol is referenced from another module, that module is in scope — read it before concluding.
 
-Any assumption you could not verify goes verbatim into the Step 5 plan (or your answer, for a question) as `unverified: …`. Do not present a guess as a fact.
+**A negative claim costs more evidence than a positive one.** "NOT MET", "does not exist", "no caller", "nothing else affected" each need the *same or stronger* first-hand proof than a positive — cite the read/grep that shows the absence. If a requirement is a ticket or shorthand (`No.228`) whose full scope you haven't read, you can't issue a verdict: output `UNVERIFIED — scope unclear` and get the spec first. Separate **"exists in the repo"** (verifiable by reading code) from **"deployed where the user is looking"** (usually not verifiable — flag it). Any assumption you couldn't verify goes verbatim into the Step 5 plan (or your answer) as `unverified: …` — never present a guess as fact.
+
+#### If you delegate to sub-agents (optional — not the default)
+
+Sub-agents pay off only when the work is genuinely **broad and independent** (e.g. several unrelated requirements at once) and the isolated context outweighs their cost — each can burn 50–130k tokens. For a single target, the orchestrator reading directly is cheaper and more accurate. When you do delegate:
+
+- **You own every claim you relay.** A sub-agent's output is a lead, not a fact. Before passing any **load-bearing, customer-facing, or negative** claim upward, read the code that proves it yourself.
+- **Never relay a sub-agent's "does not exist / not met" verbatim** — that's the exact claim that needs first-hand confirmation ("no commit mentions No.228" ≠ "the feature is absent").
 
 ### Step 5 — Plan + checklist → write the task file (BEFORE acting — hard stop for review)
 
@@ -196,7 +205,7 @@ After the user confirms:
 4. Re-grep every symbol you changed and confirm **each call site from the Completeness protocol** is updated or still compatible — including the hidden-dispatch consumers (listeners, jobs, observers)
 5. Cross-check: if you modified an endpoint or schema that has cross-references in the docs (`Related: [XX-...]`), verify the related modules don't break
 
-### Step 7 — Update the module docs (REQUIRED if code changed OR insight captured)
+### Step 7 — Update the module docs (REQUIRED if code changed, doc drift discovered, OR insight captured)
 
 After the change is applied, update `{modules_path}/{NN}-{slug}.md` for any of these:
 
@@ -218,10 +227,13 @@ After the change is applied, update `{modules_path}/{NN}-{slug}.md` for any of t
 2. Would it **surprise** a careful reader of the code? (i.e., not obvious from reading the file directly)
 3. Would knowing it save the next reader **>5 minutes**?
 
-Auto-capture vs ask:
-- **Bug fix with non-obvious root cause** → default capture (no need to ask; usually passes the filter)
-- **Q&A insight** (intent = question, no code change) → ask the user once: *"Did we discover anything worth noting in the docs?"* Default No — keep the bar high.
-- **Routine work** (typo, format, trivial rename) → do NOT capture insights, only the file/endpoint change itself.
+Drift vs insight — two different things:
+
+- **Doc drift** (the map is factually *wrong* vs current code — a path that no longer exists, a renamed/removed method, a stale schema or enum) → **always fix in-place, regardless of intent, including pure Q&A.** This isn't "capture", it's correcting an error; the 3-question filter does not apply.
+- **Insight** (a non-obvious *learning* the map simply didn't have) → gated by the filter above, then:
+  - **Bug fix with non-obvious root cause** → default capture (no need to ask; usually passes the filter)
+  - **Q&A insight** (intent = question, no code change) → ask the user once: *"Did we discover anything worth noting in the docs?"* Default No — keep the bar high.
+  - **Routine work** (typo, format, trivial rename) → do NOT capture insights, only the file/endpoint change itself.
 
 Rules for updating:
 
@@ -288,6 +300,9 @@ If any row is ⚠️ or ❌, the task is **not** complete — say so up front, d
 - ❌ Presenting a plan, then quietly implementing something different or dropping items → the agreed checklist is the contract, tracked to the end
 - ❌ Claiming "done" without walking the Step 5 checklist row by row → that's how items get forgotten
 - ❌ Skipping/hand-waving tests, or hiding what wasn't tested → "tests full of gaps" then "sorry I forgot" is exactly what the closing gate forbids
+- ❌ Relaying a sub-agent's conclusion — especially a negative one — as fact without reading the proof yourself → its mistake becomes your wrong answer
+- ❌ Verdicting "NOT MET / does not exist" on a requirement whose full spec (ticket No.XXX) you never read → say `UNVERIFIED` and get the spec
+- ❌ Spawning sub-agents by default for small / single-target work → burns 50–130k tokens each for no gain
 
 ## Output style
 
